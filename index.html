@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speaker Recognition System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Speaker Recognition System</h1>
+        
+        <div class="upload-section">
+            <h2>Upload Audio File</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="file-input">
+                    <input type="file" id="file" name="file" accept="audio/*" required>
+                </div>
+                
+                <div class="mode-selection">
+                    <label>
+                        <input type="radio" name="mode" value="add" checked>
+                        Upload and Add to Database
+                    </label>
+                    <label>
+                        <input type="radio" name="mode" value="check">
+                        Upload and Check Only
+                    </label>
+                </div>
+                
+                <button type="submit">Process Audio</button>
+            </form>
+        </div>
+        
+        <div class="results-section">
+            <h2>Results</h2>
+            <div id="results">
+                <p id="statusMessage">Upload an audio file to begin</p>
+                <div id="matches"></div>
+            </div>
+        </div>
+        
+        <div class="speakers-section">
+            <h2>Known Speakers</h2>
+            <ul id="speakersList">
+                {% for speaker in speakers %}
+                <li>{{ speaker }}</li>
+                {% else %}
+                <li>No speakers in database</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const statusMessage = document.getElementById('statusMessage');
+            const matchesDiv = document.getElementById('matches');
+            
+            statusMessage.textContent = "Processing...";
+            statusMessage.className = "processing";
+            matchesDiv.innerHTML = "";
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusMessage.textContent = "Upload complete! " + data.message;
+                    statusMessage.className = "success";
+                    
+                    if (data.matches && data.matches.length > 0) {
+                        matchesDiv.innerHTML = "<h3>Matching Speakers:</h3>";
+                        const ul = document.createElement('ul');
+                        
+                        data.matches.forEach(match => {
+                            const li = document.createElement('li');
+                            li.textContent = `${match.speaker} (similarity: ${match.similarity})`;
+                            ul.appendChild(li);
+                        });
+                        
+                        matchesDiv.appendChild(ul);
+                    }
+                    
+                    // If a new speaker was added, update the list
+                    if (data.new_speaker) {
+                        const speakersList = document.getElementById('speakersList');
+                        const li = document.createElement('li');
+                        li.textContent = data.new_speaker;
+                        speakersList.appendChild(li);
+                    }
+                } else {
+                    statusMessage.textContent = "Error: " + data.error;
+                    statusMessage.className = "error";
+                }
+            } catch (error) {
+                statusMessage.textContent = "Error: " + error.message;
+                statusMessage.className = "error";
+            }
+        });
+    </script>
+</body>
+</html>
